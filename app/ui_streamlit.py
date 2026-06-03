@@ -44,8 +44,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown('<p class="hero-title">Nova</p>', unsafe_allow_html=True)
-st.markdown('<p class="hero-sub">Multi-Agent Trade Document Pipeline</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-title">Trade Doc Pipeline</p>', unsafe_allow_html=True)
+st.markdown(
+    '<p class="hero-sub">Multi-agent extraction → validation → decision</p>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<span class="chip">extract → validate → decide · gemini-3.1-flash-lite</span>',
     unsafe_allow_html=True,

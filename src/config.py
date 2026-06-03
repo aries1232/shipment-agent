@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     extractor_model: str = "gemini-3.1-flash-lite"
     text_model: str = "gemini-3.1-flash-lite"
     confidence_threshold: float = 0.7
-    db_path: str = "nova.db"
+    db_path: str = "pipeline.db"
     rules_path: str = "rules/acme_imports.yaml"
 
 

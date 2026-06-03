@@ -1,7 +1,7 @@
 [project]
-name = "nova-trade-pipeline"
+name = "trade-doc-pipeline"
 version = "0.1.0"
-description = "Nova — Multi-Agent Trade Document Pipeline (POC)"
+description = "Multi-Agent Trade Document Pipeline (POC)"
 requires-python = ">=3.11"
 dependencies = [
     "google-genai>=1.0.0",
