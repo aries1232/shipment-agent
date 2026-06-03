@@ -1,0 +1,34 @@
+# Customer rule set — the "requirements that usually live in someone's head", made explicit.
+customer: ACME Imports Ltd
+
+fields:
+  consignee_name:
+    rule: equals          # fuzzy: tolerates Ltd/Limited but not a different entity
+    expected: ACME Imports Ltd
+
+  incoterms:
+    rule: allowed         # value must contain one of these terms
+    expected: [FOB, CIF, CFR]
+
+  port_of_loading:
+    rule: allowed
+    expected: [Shanghai, Ningbo, Shenzhen]
+
+  port_of_discharge:
+    rule: allowed
+    expected: [Rotterdam, Hamburg]
+
+  hs_code:
+    rule: regex           # 4.2(.2) dotted form, or 6-10 bare digits
+    expected: '^\d{4}(\.\d{2}){1,2}$|^\d{6,10}$'
+
+  invoice_number:
+    rule: regex           # customer mandates the INV- prefix
+    expected: '^INV-.+'
+
+  gross_weight:
+    rule: unit            # must be stated in kilograms
+    expected: KG
+
+  description_of_goods:
+    rule: present         # must not be blank
