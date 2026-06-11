@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 # --- Extraction -------------------------------------------------------------
 
-# The eight fields the brief requires, plus document_type for routing context.
+# The brief's required fields, document_type for context, plus common cross-doc trade fields.
 EXTRACTION_FIELDS = (
     "document_type",
     "consignee_name",
@@ -17,12 +17,17 @@ EXTRACTION_FIELDS = (
     "description_of_goods",
     "gross_weight",
     "invoice_number",
+    "country_of_origin",
+    "shipper_name",
+    "invoice_date",
+    "total_value",
 )
 
 
 class ExtractedField(BaseModel):
     value: str | None = None
     confidence: float = 0.0  # 0..1; 0 means "not present in the document"
+    source_snippet: str | None = None  # verbatim text where the value was read
 
 
 class ExtractedDocument(BaseModel):
@@ -35,6 +40,10 @@ class ExtractedDocument(BaseModel):
     description_of_goods: ExtractedField
     gross_weight: ExtractedField
     invoice_number: ExtractedField
+    country_of_origin: ExtractedField
+    shipper_name: ExtractedField
+    invoice_date: ExtractedField
+    total_value: ExtractedField
 
     def items(self) -> list[tuple[str, ExtractedField]]:
         return [(name, getattr(self, name)) for name in EXTRACTION_FIELDS]
@@ -102,3 +111,36 @@ class RunResult(BaseModel):
     extracted: ExtractedDocument | None = None
     report: ValidationReport | None = None
     decision: Decision | None = None
+
+
+# --- Cross-document consistency (a shipment is many documents) ---------------
+
+
+class ConsistencyStatus(str, Enum):
+    AGREE = "agree"
+    DISAGREE = "disagree"
+
+
+class ConsistencyResult(BaseModel):
+    field: str
+    values_by_doc: dict[str, str]  # doc_name -> value, only docs that reported the field
+    status: ConsistencyStatus
+
+
+class StageTiming(BaseModel):
+    name: str
+    seconds: float
+
+
+class ShipmentResult(BaseModel):
+    shipment_id: str
+    customer: str
+    sender: str
+    subject: str
+    outcome: DecisionOutcome
+    reasoning: str
+    draft_reply: str
+    docs: dict[str, ExtractedDocument]  # doc_name -> extraction
+    reports: dict[str, ValidationReport]  # doc_name -> per-doc validation
+    cross: list[ConsistencyResult]
+    trace: list[StageTiming] = []  # per-stage timings, for pipeline transparency

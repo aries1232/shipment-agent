@@ -13,12 +13,15 @@ from src.config import settings
 from src.gemini_client import get_client
 
 SCHEMA_DESC = """Tables:
-runs(run_id, doc_name, status, created_at, outcome, reasoning, amendment_request)
+shipments(shipment_id, customer, sender, subject, status, outcome, reasoning, created_at)
+  - one row per incoming shipment (an SU email with one or more documents).
   - created_at is ISO-8601 UTC text.
-  - status: extracted | validated | stored | failed
+  - status: processing | stored | failed
   - outcome: auto_approve | human_review | amendment
-  - a shipment is "flagged" when outcome IN ('human_review','amendment').
-fields(run_id, field_name, value, confidence, validation_status, expected_value)
+  - a shipment is "pending review" / "flagged" when outcome IN ('human_review','amendment').
+runs(run_id, shipment_id, doc_name, status, created_at, outcome, reasoning, amendment_request)
+  - one row per document; shipment_id links a document to its shipment.
+fields(run_id, field_name, value, confidence, source_snippet, validation_status, expected_value)
   - confidence is a 0..1 float.
   - validation_status: match | mismatch | uncertain"""
 

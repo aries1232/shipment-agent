@@ -7,7 +7,13 @@ so it cannot invent a field or value.
 
 from src.config import settings
 from src.gemini_client import get_client
-from src.schemas import Decision, DecisionOutcome, ValidationReport
+from src.schemas import (
+    ConsistencyResult,
+    ConsistencyStatus,
+    Decision,
+    DecisionOutcome,
+    ValidationReport,
+)
 
 
 def _outcome(report: ValidationReport) -> DecisionOutcome:
@@ -59,3 +65,73 @@ def decide(report: ValidationReport) -> Decision:
     reasoning = _explain(outcome, report)
     amendment = _draft_amendment(report) if outcome == DecisionOutcome.AMENDMENT else None
     return Decision(outcome=outcome, reasoning=reasoning, amendment_request=amendment)
+
+
+# --- Shipment-level: combine per-doc rules with cross-document consistency ----
+
+
+def _shipment_outcome(
+    reports: dict[str, ValidationReport], cross: list[ConsistencyResult]
+) -> DecisionOutcome:
+    disagree = any(c.status == ConsistencyStatus.DISAGREE for c in cross)
+    if disagree or any(r.mismatches for r in reports.values()):
+        return DecisionOutcome.AMENDMENT
+    if any(r.uncertain for r in reports.values()):
+        return DecisionOutcome.HUMAN_REVIEW
+    return DecisionOutcome.AUTO_APPROVE
+
+
+def _shipment_facts(
+    reports: dict[str, ValidationReport], cross: list[ConsistencyResult]
+) -> str:
+    lines: list[str] = []
+    for doc_name, report in reports.items():
+        issues = report.mismatches + report.uncertain
+        if issues:
+            lines.append(f"{doc_name}:")
+            lines += [
+                f"  - {r.field}: found '{r.found}', expected '{r.expected}' ({r.status.value})"
+                for r in issues
+            ]
+    for c in cross:
+        if c.status == ConsistencyStatus.DISAGREE:
+            vals = "; ".join(f"{n}='{v}'" for n, v in c.values_by_doc.items())
+            lines.append(f"cross-document {c.field} disagrees across docs: {vals}")
+    return "\n".join(lines) if lines else "All documents pass every rule and agree with each other."
+
+
+def _explain_shipment(outcome: DecisionOutcome, facts: str, customer: str) -> str:
+    prompt = (
+        f"A shipment's documents were validated against customer {customer}'s rules and "
+        "cross-checked against each other.\n"
+        f"Decision: {outcome.value}.\n"
+        f"Facts:\n{facts}\n\n"
+        "In 2-3 sentences, explain to a CG reviewer why this decision was reached. "
+        "Reference only the facts above. Do not invent fields or values."
+    )
+    return get_client().generate_text(settings.text_model, prompt)
+
+
+def _draft_reply(outcome: DecisionOutcome, facts: str, customer: str) -> str:
+    if outcome == DecisionOutcome.AUTO_APPROVE:
+        instruction = (
+            "Draft a short, professional email to the supplier confirming the shipment documents "
+            f"for {customer} passed validation and are approved. Keep it under 90 words."
+        )
+    else:
+        instruction = (
+            "Draft a short, professional amendment-request email to the supplier listing every "
+            "discrepancy below that must be corrected and resubmitted. Group by document, reference "
+            "only these items, do not add new ones. Keep it under 160 words."
+        )
+    prompt = f"{instruction}\n\nFindings:\n{facts}"
+    return get_client().generate_text(settings.text_model, prompt)
+
+
+def decide_shipment(
+    reports: dict[str, ValidationReport], cross: list[ConsistencyResult], customer: str
+) -> tuple[DecisionOutcome, str, str]:
+    """Return (outcome, CG-facing reasoning, draft reply email to the supplier)."""
+    outcome = _shipment_outcome(reports, cross)
+    facts = _shipment_facts(reports, cross)
+    return outcome, _explain_shipment(outcome, facts, customer), _draft_reply(outcome, facts, customer)

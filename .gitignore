@@ -4,5 +4,9 @@ __pycache__/
 .env
 pipeline.db
 samples/*.pdf
+samples/shipments/
+inbox/
+processed/
+sent/
 .pytest_cache/
 .ruff_cache/

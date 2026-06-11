@@ -1,5 +1,5 @@
-from src.agents.validator import validate
-from src.schemas import ExtractedDocument, ValidationStatus
+from src.agents.validator import completeness_report, validate
+from src.schemas import EXTRACTION_FIELDS, ExtractedDocument, ValidationStatus
 
 CLEAN = {
     "document_type": "Commercial Invoice",
@@ -15,7 +15,9 @@ CLEAN = {
 
 
 def _doc(overrides: dict | None = None, conf: float = 0.95) -> ExtractedDocument:
-    values = {**CLEAN, **(overrides or {})}
+    values = {f: None for f in EXTRACTION_FIELDS}
+    values.update(CLEAN)
+    values.update(overrides or {})
     return ExtractedDocument(**{k: {"value": v, "confidence": conf} for k, v in values.items()})
 
 
@@ -45,3 +47,12 @@ def test_missing_value_surfaces_as_uncertain():
     r = _by_field(validate(_doc({"invoice_number": None})))["invoice_number"]
     assert r.status == ValidationStatus.UNCERTAIN
     assert "not found" in r.note
+
+
+def test_completeness_flags_field_missing_from_every_doc():
+    # Two docs, neither carries an invoice number -> shipment-level uncertain (no silent gap).
+    docs = {"bol": _doc({"invoice_number": None}), "packing": _doc({"invoice_number": None})}
+    report = completeness_report(docs)
+    flagged = {r.field for r in report.results}
+    assert "invoice_number" in flagged
+    assert all(r.status == ValidationStatus.UNCERTAIN for r in report.results)

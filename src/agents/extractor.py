@@ -16,11 +16,13 @@ Rules:
 - If a field is absent or not legible, set value to null and confidence to 0. Never guess.
 - Copy values verbatim, keeping units, punctuation and casing.
 - confidence (0.0-1.0) reflects how certain you are the value is correct and clearly legible.
+- source_snippet: the short verbatim line or label+value where you read the field (for audit).
 
 Fields:
 - document_type: e.g. Commercial Invoice, Bill of Lading, Packing List, Certificate of Origin
 - consignee_name, hs_code, port_of_loading, port_of_discharge, incoterms,
-  description_of_goods, gross_weight, invoice_number"""
+  description_of_goods, gross_weight, invoice_number, country_of_origin, shipper_name,
+  invoice_date, total_value"""
 
 _MIME_BY_SUFFIX = {
     ".pdf": "application/pdf",

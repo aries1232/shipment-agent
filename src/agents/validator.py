@@ -26,6 +26,13 @@ def load_rules(path: str | None = None) -> dict:
     return yaml.safe_load(Path(path or settings.rules_path).read_text(encoding="utf-8"))
 
 
+def rule_path_for(customer: str) -> str:
+    """Map a customer name to its rule set; fall back to the default if none exists."""
+    slug = re.sub(r"[^a-z0-9]+", "_", customer.lower()).strip("_")
+    candidate = Path("rules") / f"{slug}.yaml"
+    return str(candidate) if candidate.exists() else settings.rules_path
+
+
 def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9 ]", "", s.lower()).strip()
 
@@ -65,7 +72,12 @@ def _check(rule: str, expected, value: str) -> tuple[ValidationStatus, str]:
     raise ValueError(f"unknown rule: {rule}")
 
 
-def validate(doc: ExtractedDocument, rules: dict | None = None) -> ValidationReport:
+def validate(
+    doc: ExtractedDocument, rules: dict | None = None, flag_missing: bool = True
+) -> ValidationReport:
+    """Validate one document. With flag_missing=False, a field absent from this document is
+    skipped rather than flagged — used per-doc in a shipment, where another document may carry
+    it and shipment-level completeness covers anything missing everywhere."""
     field_rules = (rules or load_rules())["fields"]
     results: list[FieldValidation] = []
 
@@ -78,6 +90,8 @@ def validate(doc: ExtractedDocument, rules: dict | None = None) -> ValidationRep
         value, confidence = field.value, field.confidence
 
         if not value:
+            if not flag_missing:
+                continue
             status, note = UNCERTAIN, "not found in document"
         elif confidence < settings.confidence_threshold:
             status, note = UNCERTAIN, f"low extraction confidence ({confidence:.0%})"
@@ -95,4 +109,24 @@ def validate(doc: ExtractedDocument, rules: dict | None = None) -> ValidationRep
             )
         )
 
+    return ValidationReport(results=results)
+
+
+def completeness_report(
+    docs: dict[str, ExtractedDocument], rules: dict | None = None
+) -> ValidationReport:
+    """Flag rule fields that are absent from every document in the shipment (no silent gaps)."""
+    field_rules = (rules or load_rules())["fields"]
+    results = [
+        FieldValidation(
+            field=name,
+            status=UNCERTAIN,
+            found=None,
+            expected=_expected_display(spec["rule"], spec.get("expected")),
+            confidence=0.0,
+            note="required field not present in any document",
+        )
+        for name, spec in field_rules.items()
+        if all(not getattr(doc, name).value for doc in docs.values())
+    ]
     return ValidationReport(results=results)

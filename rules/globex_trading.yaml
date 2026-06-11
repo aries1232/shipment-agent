@@ -1,0 +1,34 @@
+# Customer rule set for Globex Trading — selected automatically by validator.rule_path_for().
+customer: Globex Trading GmbH
+
+fields:
+  consignee_name:
+    rule: equals
+    expected: Globex Trading GmbH
+
+  incoterms:
+    rule: allowed
+    expected: [CIF, CFR, DAP]
+
+  port_of_loading:
+    rule: allowed
+    expected: [Busan, Tokyo, Kaohsiung]
+
+  port_of_discharge:
+    rule: allowed
+    expected: [Hamburg, Antwerp]
+
+  hs_code:
+    rule: regex
+    expected: '^\d{4}(\.\d{2}){1,2}$|^\d{6,10}$'
+
+  invoice_number:
+    rule: regex           # Globex mandates the GBX- prefix
+    expected: '^GBX-.+'
+
+  gross_weight:
+    rule: unit
+    expected: KG
+
+  description_of_goods:
+    rule: present

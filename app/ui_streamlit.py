@@ -68,11 +68,11 @@ with st.sidebar:
 
 
 def _decision_card(result: RunResult) -> None:
-    accent, bg, label = OUTCOME_STYLE[result.decision.outcome]
+    accent, bg, label = OUTCOME_STYLE[result.decision.outcome] # type: ignore
     st.markdown(
         f'<div class="decision-card" style="background:{bg};border-left:6px solid {accent}">'
         f'<div class="decision-title" style="color:{accent}">{label}</div>'
-        f'<div class="decision-reason">{html.escape(result.decision.reasoning)}</div></div>',
+        f'<div class="decision-reason">{html.escape(result.decision.reasoning)}</div></div>', # type: ignore
         unsafe_allow_html=True,
     )
 
@@ -157,7 +157,7 @@ with run_tab:
         st.info("Pick a sample..")
 
 with ask_tab:
-    st.caption("Plain-English questions over stored runs. Answers are grounded in real SQL.")
+    st.caption("Ask any questions over shipements")
     question = st.text_input("Question", "How many shipments were flagged this week?")
     if st.button("Ask", disabled=not settings.gemini_api_key):
         with st.spinner("Querying…"):
